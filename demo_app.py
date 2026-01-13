@@ -385,8 +385,8 @@ if uploaded_file:
                 # Show JSON toggle for recommendations
                 with st.expander("📄 View Recommendation JSON"):
                     st.json(recommendation_result)
-            else:
-                st.info("No product recommendations available for your skin profile.")
+            # else:
+            #     st.info("No product recommendations available for your skin profile.")
         
         # AWS Rekognition
         aws_data = getattr(result, 'aws_rekognition', None)
@@ -514,3 +514,4 @@ if uploaded_file:
 else:
     # Empty State
     st.info("👆 Please upload an image to begin the demo.")
+
