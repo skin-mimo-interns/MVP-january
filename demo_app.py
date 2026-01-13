@@ -430,9 +430,10 @@ if uploaded_file:
         st.subheader("📄 Raw Data")
         with st.expander("View Full API Response JSON", expanded=True):
              # Access the raw dictionary from the wrapper if possible, or just the result
-             raw_data = result._value if hasattr(result, '_value') else result
+            #  raw_data = result._value if hasattr(result, '_value') else result
              st.json(raw_data)
 
 else:
     # Empty State
     st.info("👆 Please upload an image to begin the demo.")
+
