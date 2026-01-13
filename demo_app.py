@@ -27,20 +27,25 @@ class DictObj:
                 setattr(self, key, DictObj(val) if isinstance(val, dict) else val)
     
     def __getattr__(self, name):
-        return None
+        raise AttributeError(f"Attribute '{name}' not found")
 
 # --- Helper Functions ---
 def create_spider_chart(analysis):
     categories = ['Moisture', 'Oiliness', 'Wrinkles', 'Spots', 'Pores', 'Redness', 'Acne', 'Dark Circles']
+    # Safely access nested attributes using getattr chaining or checks
+    def get_score(parent, attr):
+        obj = getattr(parent, attr, None)
+        return getattr(obj, 'score', 0) if obj else 0
+
     values = [
-        getattr(analysis.moisture, 'score', 0),
-        getattr(analysis.oiliness, 'score', 0),
-        getattr(analysis.wrinkles, 'score', 0),
-        getattr(analysis.spots, 'score', 0),
-        getattr(analysis.pores, 'score', 0),
-        getattr(analysis.redness, 'score', 0),
-        getattr(analysis.acne, 'score', 0),
-        getattr(analysis.dark_circles, 'score', 0),
+        get_score(analysis, 'moisture'),
+        get_score(analysis, 'oiliness'),
+        get_score(analysis, 'wrinkles'),
+        get_score(analysis, 'spots'),
+        get_score(analysis, 'pores'),
+        get_score(analysis, 'redness'),
+        get_score(analysis, 'acne'),
+        get_score(analysis, 'dark_circles'),
     ]
     
     values_closed = values + [values[0]]
@@ -136,6 +141,7 @@ if uploaded_file:
         
         # Define placeholders for state
         result = None
+        raw_data = None
         
         # Auto-start analysis
         with st.status("Running Remote Analysis...", expanded=True) as status:
@@ -159,6 +165,7 @@ if uploaded_file:
                     status.update(label="Analysis Complete!", state="complete", expanded=False)
                     
                     # Convert dict to object for dot notation access to match original UI code
+                    raw_data = data
                     result = DictObj(data)
                     
                 else:
@@ -301,12 +308,24 @@ if uploaded_file:
                         st.markdown(f"**{name}**")
                         st.caption(f"by {brand}")
                         
+                        # Active Ingredients
+                        actives = getattr(product, 'key_actives', [])
+                        if actives:
+                            actives_str = ", ".join([a.replace('_', ' ').capitalize() for a in actives[:3]])
+                            st.markdown(f"<small>🧪 <b>Actives:</b> {actives_str}</small>", unsafe_allow_html=True)
+
+                        # Concerns
                         concerns = getattr(product, 'concerns_addressed', [])
                         if concerns:
                             c_list = [c if isinstance(c, str) else getattr(c, 'parameter', '') for c in concerns] # Handle both str and obj
                             concern_tags = " ".join([f"`{c}`" for c in c_list])
-                            st.markdown(f"**Addresses:** {concern_tags}")
+                            st.markdown(f"<small>🎯 <b>Targets:</b> {concern_tags}</small>", unsafe_allow_html=True)
                         
+                        # Notes/Relevance
+                        notes = getattr(product, 'notes', '')
+                        if notes:
+                            st.info(f"{notes}")
+
                         buy_url = getattr(product, 'buy_url', '#')
                         if buy_url and buy_url != '#':
                             st.link_button("View Product →", buy_url, use_container_width=True)
@@ -417,7 +436,7 @@ if uploaded_file:
             st.subheader("🔥 Skin Analysis Heatmap")
             try:
                 heatmap_bytes = base64.b64decode(heatmap_b64)
-                st.image(heatmap_bytes, caption="AI Generated Heatmap", use_container_width=True)
+                st.image(heatmap_bytes, caption="AI Generated Heatmap", width='stretch')
             except Exception as e:
                 st.error("Error displaying heatmap.")
 
@@ -431,9 +450,8 @@ if uploaded_file:
         with st.expander("View Full API Response JSON", expanded=True):
              # Access the raw dictionary from the wrapper if possible, or just the result
             #  raw_data = result._value if hasattr(result, '_value') else result
-             st.json(raw_data)
+             st.json(result)
 
 else:
     # Empty State
     st.info("👆 Please upload an image to begin the demo.")
-
