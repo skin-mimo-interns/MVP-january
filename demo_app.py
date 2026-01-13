@@ -266,17 +266,38 @@ if uploaded_file:
                         st.success(f"• {tip}")
         
         # Product Recommendations
-        prod_data = getattr(result, 'product_recommendations', None)
-        if prod_data:
+        product_recommendations_data = trace.get("product_recommendations_data")
+        if product_recommendations_data and result.skin_analysis:
             st.markdown("---")
             st.subheader("🛒 Personalized Product Recommendations")
             
             st.markdown("""
-            Based on your skin analysis, we've curated the **best products** from our catalog
+            Based on your skin analysis, we've curated the **best 4 products** from our catalog
             that directly address your top skin concerns.
             """)
             
-            recommended_products = getattr(prod_data, 'recommended_products', [])
+            recommendation_result = product_recommendations_data
+            
+            # Display Top Concerns Identified
+            top_concerns = recommendation_result.get("top_concerns_identified", [])
+            if top_concerns:
+                st.markdown("##### ⚠️ Top Concerns Identified")
+                concern_cols = st.columns(len(top_concerns))
+                for i, concern in enumerate(top_concerns):
+                    with concern_cols[i]:
+                        severity = concern.get("severity", "mild")
+                        severity_color = "🔴" if severity == "severe" else "🟠" if severity == "moderate" else "🟡"
+                        st.metric(
+                            label=f"{severity_color} {concern.get('parameter', 'Unknown').replace('_', ' ').title()}",
+                            value=f"{concern.get('score', 0)}/100",
+                            delta=f"-{concern.get('improvement_potential', 0)}% potential",
+                            delta_color="inverse"
+                        )
+            
+            st.markdown("")
+            st.markdown("##### 🎁 Recommended Products")
+            
+            recommended_products = prod_data.get('recommended_products', [])
             
             if recommended_products:
                 prod_cols = st.columns(4)
@@ -286,57 +307,64 @@ if uploaded_file:
                     "premium": ("👑", "#a855f7", "Premium")
                 }
                 
-                count = 0
-                for product in recommended_products:
-                    if count >= 4: break
-                    
-                    with prod_cols[count]:
-                        price_tier = getattr(product, 'price_tier', 'mid')
+                for i, product in enumerate(recommended_products[:4]):
+                    with prod_cols[i]:
+                        price_tier = product.get('price_tier', 'mid')
                         tier_info = tier_badges.get(str(price_tier), ("💎", "#3b82f6", "Mid-Range"))
                         tier_icon, tier_color, tier_label = tier_info
                         
-                        category = getattr(product, 'category', 'Product')
-                        name = getattr(product, 'name', 'Product')
-                        brand = getattr(product, 'brand', 'Brand')
+                        category = product.get('category', 'Product')
+                        name = product.get('name', 'Product')
+                        brand = product.get('brand', 'Brand')
                         
-                        badge_html = f"""
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                            <span style="background: {tier_color}20; color: {tier_color}; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">{tier_icon} {tier_label}</span>
-                        </div>
-                        """
-                        st.markdown(badge_html, unsafe_allow_html=True)
-                        st.markdown(f"**{name}**")
-                        st.caption(f"by {brand}")
-                        
-                        # Active Ingredients
-                        actives = getattr(product, 'key_actives', [])
-                        if actives:
-                            actives_str = ", ".join([a.replace('_', ' ').capitalize() for a in actives[:3]])
-                            st.markdown(f"<small>🧪 <b>Actives:</b> {actives_str}</small>", unsafe_allow_html=True)
+                        # Card container with styling
+                        with st.container():
+                            badge_html = f"""
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <span style="background: {tier_color}20; color: {tier_color}; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">{tier_icon} {tier_label}</span>
+                                <span style="background: #f1f5f9; color: #475569; padding: 4px 8px; border-radius: 8px; font-size: 11px;">{category.title()}</span>
+                            </div>
+                            """
+                            st.markdown(badge_html, unsafe_allow_html=True)
+                            st.markdown(f"**{name}**")
+                            st.caption(f"by {brand}")
+                            
+                            # Active Ingredients
+                            actives = product.get('key_actives', [])
+                            if actives:
+                                actives_str = ", ".join([a.replace('_', ' ').capitalize() for a in actives[:3]])
+                                st.markdown(f"<small>🧪 <b>Actives:</b> {actives_str}</small>", unsafe_allow_html=True)
 
-                        # Concerns
-                        concerns = getattr(product, 'concerns_addressed', [])
-                        if concerns:
-                            c_list = [c if isinstance(c, str) else getattr(c, 'parameter', '') for c in concerns] # Handle both str and obj
-                            concern_tags = " ".join([f"`{c}`" for c in c_list])
-                            st.markdown(f"<small>🎯 <b>Targets:</b> {concern_tags}</small>", unsafe_allow_html=True)
-                        
-                        # Notes/Relevance
-                        notes = getattr(product, 'notes', '')
-                        if notes:
-                            st.info(f"{notes}")
+                            # Concerns
+                            concerns = product.get('concerns_addressed', [])
+                            if concerns:
+                                # Ensure concerns are strings
+                                c_list = [c if isinstance(c, str) else c.get('parameter', '') for c in concerns]
+                                concern_tags = " ".join([f"`{c}`" for c in c_list])
+                                st.markdown(f"<small>🎯 <b>Targets:</b> {concern_tags}</small>", unsafe_allow_html=True)
+                            
+                            # Notes/Relevance
+                            notes = product.get('notes', '')
+                            if notes:
+                                st.info(f"{notes}")
 
-                        buy_url = getattr(product, 'buy_url', '#')
-                        if buy_url and buy_url != '#':
-                            st.link_button("View Product →", buy_url, width='stretch')
-                        else:
-                            st.button("View Product →", key=f"prod_{count}", disabled=True, width='stretch')
-                        st.markdown("---")
-                    
-                    count += 1
+                            buy_url = product.get('buy_url', '#')
+                            if buy_url and buy_url != '#':
+                                st.link_button("View Product →", buy_url, use_container_width=True)
+                            else:
+                                st.button("View Product →", key=f"prod_{i}", disabled=True, use_container_width=True)
+                            st.markdown("---")
             else:
                 st.info("No curated products found for your specific profile.")
-
+                
+                st.markdown("")
+                
+                # Show JSON toggle for recommendations
+                with st.expander("📄 View Recommendation JSON"):
+                    st.json(recommendation_result)
+            else:
+                st.info("No product recommendations available for your skin profile.")
+        
         # AWS Rekognition
         aws_data = getattr(result, 'aws_rekognition', None)
         if aws_data:
@@ -447,10 +475,18 @@ if uploaded_file:
     if result:
         st.divider()
         st.subheader("📄 Raw Data")
+        
+        # Debugging
+        st.write("Debug Info:")
+        if raw_data:
+            st.write("Top-level keys:", list(raw_data.keys()))
+            if 'product_recommendations' in raw_data:
+                st.write("Product Reco Keys:", list(raw_data['product_recommendations'].keys()))
+            else:
+                st.warning("No 'product_recommendations' key found in API response.")
+
         with st.expander("View Full API Response JSON", expanded=True):
-             # Access the raw dictionary from the wrapper if possible, or just the result
-            #  raw_data = result._value if hasattr(result, '_value') else result
-             st.json(result)
+             st.json(raw_data)
 
 else:
     # Empty State
