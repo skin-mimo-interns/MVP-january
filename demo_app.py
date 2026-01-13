@@ -133,7 +133,7 @@ if uploaded_file:
     with col_img:
         st.subheader("📸 Input Analysis")
         # Simply display the PIL image. This avoids any numpy/cv2 complications.
-        st.image(pil_image, caption="Original Image", use_container_width=True)
+        st.image(pil_image, caption="Original Image", width='stretch')
 
     # 2. Pipeline Execution Column (Using API)
     with col_trace:
@@ -202,7 +202,7 @@ if uploaded_file:
             
             with chart_col:
                 spider_fig = create_spider_chart(skin_analysis)
-                st.plotly_chart(spider_fig, use_container_width=True)
+                st.plotly_chart(spider_fig, width='stretch')
             
             with info_col:
                 st.markdown("##### 📌 Key Insights")
@@ -328,9 +328,9 @@ if uploaded_file:
 
                         buy_url = getattr(product, 'buy_url', '#')
                         if buy_url and buy_url != '#':
-                            st.link_button("View Product →", buy_url, use_container_width=True)
+                            st.link_button("View Product →", buy_url, width='stretch')
                         else:
-                            st.button("View Product →", key=f"prod_{count}", disabled=True, use_container_width=True)
+                            st.button("View Product →", key=f"prod_{count}", disabled=True, width='stretch')
                         st.markdown("---")
                     
                     count += 1
