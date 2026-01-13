@@ -266,13 +266,32 @@ if uploaded_file:
                         st.success(f"• {tip}")
         
         # Product Recommendations
-        product_recommendations_data = trace.get("product_recommendations_data")
-        if product_recommendations_data and result.skin_analysis:
-            st.markdown("---")
-            st.subheader("🛒 Personalized Product Recommendations")
+        st.markdown("---")
+        st.subheader("🛒 Personalized Product Recommendations")
+        
+        # --- Debug Section ---
+        with st.expander("🕵️ Product Recommendation Debugger", expanded=True):
+            st.write("**Step 1: Checking Data Source**")
+            if raw_data:
+                st.success("✅ `raw_data` is available.")
+            else:
+                st.error("❌ `raw_data` is missing.")
+
+            st.write("**Step 2: Extracting Recommendation Block**")
+            product_recommendations_data = raw_data.get("product_recommendations") if raw_data else None
             
+            if product_recommendations_data:
+                 st.success("✅ `product_recommendations` key found.")
+                 st.json(list(product_recommendations_data.keys()))
+            else:
+                 st.warning("⚠️ `product_recommendations` key NOT found in API response.")
+                 st.write("Available keys:", list(raw_data.keys()) if raw_data else "None")
+
+        # --- Logic Section ---
+        # Using raw_data (formerly trace)
+        if product_recommendations_data:
             st.markdown("""
-            Based on your skin analysis, we've curated the **best 4 products** from our catalog
+            Based on your skin analysis, we've curated the **best products** from our catalog
             that directly address your top skin concerns.
             """)
             
@@ -280,6 +299,9 @@ if uploaded_file:
             
             # Display Top Concerns Identified
             top_concerns = recommendation_result.get("top_concerns_identified", [])
+            
+            st.write(f"**Debug Step 3: Top Concerns Count:** {len(top_concerns)}")
+            
             if top_concerns:
                 st.markdown("##### ⚠️ Top Concerns Identified")
                 concern_cols = st.columns(len(top_concerns))
@@ -297,7 +319,8 @@ if uploaded_file:
             st.markdown("")
             st.markdown("##### 🎁 Recommended Products")
             
-            recommended_products = prod_data.get('recommended_products', [])
+            recommended_products = recommendation_result.get("recommended_products", [])
+            st.write(f"**Debug Step 4: Product Count:** {len(recommended_products)}")
             
             if recommended_products:
                 prod_cols = st.columns(4)
