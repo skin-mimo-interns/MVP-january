@@ -4,6 +4,7 @@ import requests
 import json
 import base64
 from PIL import Image
+import datetime
 
 # --- Configuration & Setup ---
 st.set_page_config(
@@ -82,6 +83,18 @@ def create_spider_chart(analysis):
     )
     return fig
 
+# --- Utility: compute age from date of birth ---
+def compute_age(dob: datetime.date, today: datetime.date = None) -> int:
+    if not dob:
+        return None
+    if today is None:
+        today = datetime.date.today()
+    years = today.year - dob.year
+    # subtract one if birthday hasn't occurred yet this year
+    if (today.month, today.day) < (dob.month, dob.day):
+        years -= 1
+    return years
+
 # --- UI Layout ---
 
 # Sidebar
@@ -95,7 +108,12 @@ with st.sidebar:
     api_port = st.text_input("API Port", value="8000")
     
     base_url = f"http://{api_ip}:{api_port}"
-    
+
+    # Ask user for their Date of Birth
+    st.subheader("User Information")
+    dob = st.date_input("Date of Birth", value=datetime.date(2000, 1, 1), max_value=datetime.date.today())
+    actual_age = compute_age(dob)
+
     if st.button("Check Connection"):
         try:
             resp = requests.get(f"{base_url}/health", timeout=5)
@@ -148,8 +166,6 @@ if uploaded_file:
             st.write("📤 Uploading image to API...")
             try:
                 # Prepare file for upload
-                # Reset file pointer just in case PIL moved it, though we use getvalue() on uploaded_file 
-                # (Streamlit's UploadedFile doesn't share pointer with PIL's internal buffer copy usually, but good practice)
                 uploaded_file.seek(0)
                 
                 files = {"image": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
@@ -385,9 +401,7 @@ if uploaded_file:
                 # Show JSON toggle for recommendations
                 with st.expander("📄 View Recommendation JSON"):
                     st.json(recommendation_result)
-            # else:
-            #     st.info("No product recommendations available for your skin profile.")
-        
+
         # AWS Rekognition
         aws_data = getattr(result, 'aws_rekognition', None)
         if aws_data:
@@ -398,7 +412,24 @@ if uploaded_file:
             with aws_col1:
                 age = getattr(aws_data, 'age_range', None)
                 if age:
-                    st.metric("🎂 Estimated Age", f"{getattr(age, 'low', '?')}-{getattr(age, 'high', '?')} years")
+                    # Adjust AWS predicted age range by averaging with the user's provided DOB-derived age.
+                    aws_low = getattr(age, 'low', None)
+                    aws_high = getattr(age, 'high', None)
+
+                    try:
+                        if aws_low is not None and actual_age is not None:
+                            adj_low = round((float(aws_low) + float(actual_age)) / 2)
+                        else:
+                            adj_low = aws_low if aws_low is not None else '?'
+
+                        if aws_high is not None and actual_age is not None:
+                            adj_high = round((float(aws_high) + float(actual_age)) / 2)
+                        else:
+                            adj_high = aws_high if aws_high is not None else '?'
+                    except Exception:
+                        adj_low, adj_high = aws_low, aws_high
+
+                    st.metric("🎂 Estimated Age", f"{adj_low}-{adj_high} years")
                 
                 gender = getattr(aws_data, 'gender', None)
                 if gender:
@@ -514,4 +545,3 @@ if uploaded_file:
 else:
     # Empty State
     st.info("👆 Please upload an image to begin the demo.")
-
