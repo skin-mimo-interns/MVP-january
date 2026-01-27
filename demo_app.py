@@ -109,10 +109,27 @@ with st.sidebar:
     
     base_url = f"http://{api_ip}:{api_port}"
 
-    # Ask user for their Date of Birth
+    # Ask user for their Date of Birth (required)
     st.subheader("User Information")
-    dob = st.date_input("Date of Birth", value=datetime.date(2000, 1, 1), max_value=datetime.date.today())
-    actual_age = compute_age(dob)
+    # Use a text input with explicit format so there's no pre-filled default value.
+    dob_input = st.text_input("Date of Birth (required) — YYYY-MM-DD", value="", placeholder="e.g. 1996-04-23")
+    dob = None
+    actual_age = None
+    valid_dob = False
+
+    if dob_input:
+        try:
+            dob_parsed = datetime.date.fromisoformat(dob_input.strip())
+            if dob_parsed > datetime.date.today():
+                st.error("Date of birth cannot be in the future.")
+            else:
+                dob = dob_parsed
+                actual_age = compute_age(dob)
+                valid_dob = True
+        except Exception:
+            st.error("Invalid date format. Please enter in YYYY-MM-DD.")
+    else:
+        st.warning("Please enter your date of birth (required) in the sidebar before uploading an image.")
 
     if st.button("Check Connection"):
         try:
@@ -134,7 +151,12 @@ st.title("🧬 AI Skin Health Analysis")
 st.markdown("Upload a face image to generate a comprehensive dermatological assessment.")
 
 # File Uploader
-uploaded_file = st.file_uploader("Upload Image", type=['jpg', 'jpeg', 'png', 'webp'], label_visibility="collapsed")
+# File uploader is shown only after a valid DOB is provided
+uploaded_file = None
+if 'valid_dob' in globals() and valid_dob:
+    uploaded_file = st.file_uploader("Upload Image", type=['jpg', 'jpeg', 'png', 'webp'], label_visibility="collapsed")
+else:
+    st.info("Please provide your date of birth in the sidebar first. The image uploader will appear after you enter a valid DOB.")
 
 if uploaded_file:
     # Use PIL to load the image robustly
